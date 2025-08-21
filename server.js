@@ -54,7 +54,7 @@ app.post('/availability', async (req, res) => {
   }
 });
 
-// List availability
+// List availability (individual)
 app.get('/availability/:guildId/:userId/:type', async (req, res) => {
   try {
     const { guildId, userId, type } = req.query;
@@ -63,6 +63,44 @@ app.get('/availability/:guildId/:userId/:type', async (req, res) => {
     if (guildId) query = query.where('guildId', '==', guildId);
     if (userId) query = query.where('userId', '==', userId);
     if (type) query = query.where('type', '==', type);
+
+    const snapshot = await query.get();
+    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// List availability (all)
+app.get('/teams/:guildId/user/:userId/availabilities', async (req, res) => {
+  try {
+    const { guildId, userId } = req.params;
+    const { type } = req.query;
+
+    // Find the team where this user is a member
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .where('members', 'array-contains', userId)
+      .limit(1)
+      .get();
+
+    if (teamSnapshot.empty) {
+      return res.json({ success: true, results: [] });
+    }
+
+    const team = teamSnapshot.docs[0].data();
+    const memberIds = team.members || [];
+
+    // Query availabilities of team members
+    let query = db.collection('availabilities')
+      .where('guildId', '==', guildId)
+      .where('userId', 'in', memberIds);
+
+    if (type) {
+      query = query.where('type', '==', type);
+    }
 
     const snapshot = await query.get();
     const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -102,28 +140,64 @@ app.delete('/availability/:guildId/:userId/:shortId', async (req, res) => {
 app.get('/availability/:guildId/compare', async (req, res) => {
   try {
     const { guildId } = req.params;
-    const { type, threshold } = req.query;
+    const { type, threshold, userId } = req.query;
 
     if (!type) {
       return res.status(400).json({ success: false, error: 'Missing required "type"' });
     }
-
-    const snapshot = await db.collection('availabilities')
-      .where('guildId', '==', guildId)
-      .where('type', '==', type)
-      .get();
-
-    const availabilities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (availabilities.length === 0) {
-      return res.json({ success: true, overlaps: [] });
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Missing required "userId"' });
     }
 
-    // Unique users with availabilities
+    // 1) Find the team the requesting user belongs to
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .where('members', 'array-contains', userId)
+      .limit(1)
+      .get();
+
+    if (teamSnapshot.empty) {
+      // Not in a team → return no overlaps, but keep success = true to avoid breaking clients
+      return res.json({ success: true, overlaps: [], teamName: null });
+    }
+
+    const teamDoc = teamSnapshot.docs[0].data();
+    const teamName = teamDoc.teamName || null;
+    const memberIds = Array.isArray(teamDoc.members) ? teamDoc.members : [];
+
+    if (memberIds.length === 0) {
+      return res.json({ success: true, overlaps: [], teamName });
+    }
+
+    // 2) Fetch availabilities for just those team members (chunk "in" queries to ≤10 IDs each)
+    const chunk = (arr, size) => {
+      const out = [];
+      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+      return out;
+    };
+
+    const memberChunks = chunk(memberIds, 10);
+    let availabilities = [];
+
+    for (const mChunk of memberChunks) {
+      const snap = await db.collection('availabilities')
+        .where('guildId', '==', guildId)
+        .where('type', '==', type)
+        .where('userId', 'in', mChunk)
+        .get();
+
+      availabilities.push(...snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }
+
+    if (availabilities.length === 0) {
+      return res.json({ success: true, overlaps: [], teamName });
+    }
+
+    // 3) Original sweep-line logic, but scoped to team members only
     const users = new Set(availabilities.map(a => a.userId));
     const userCount = users.size;
     const required = Math.ceil(((parseInt(threshold) || 100) / 100) * userCount);
 
-    // Sweep line events (attach end to start event)
     let events = [];
     for (const a of availabilities) {
       const start = new Date(a.startUtc);
@@ -132,7 +206,7 @@ app.get('/availability/:guildId/compare', async (req, res) => {
       events.push({ time: end, type: 'end', userId: a.userId });
     }
 
-    // Sort by time
+    // Ensure ends are processed before starts when times tie
     events.sort((a, b) => a.time - b.time || (a.type === 'end' ? -1 : 1));
 
     let active = new Map();
@@ -145,7 +219,7 @@ app.get('/availability/:guildId/compare', async (req, res) => {
         if (active.size >= required && !currentStart) {
           currentStart = ev.time;
         }
-      } else if (ev.type === 'end') {
+      } else {
         if (currentStart && active.size >= required) {
           const minEnd = Math.min(...Array.from(active.values()).map(d => d.getTime()));
           overlaps.push({
@@ -159,7 +233,95 @@ app.get('/availability/:guildId/compare', async (req, res) => {
       }
     }
 
-    res.json({ success: true, overlaps });
+    res.json({ success: true, overlaps, teamName });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Create a team
+app.post('/teams', async (req, res) => {
+  try {
+    const { guildId, teamName, members, createdBy } = req.body;
+
+    if (!guildId || !teamName || !members || members.length === 0) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const teamRef = await db.collection('teams').add({
+      guildId,
+      teamName,
+      members,
+      createdBy,
+      createdAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, id: teamRef.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all teams in the Guild (Discord Server)
+app.get('/teams/:guildId', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+
+    const snapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .get();
+
+    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all members from your team
+app.get('/teams/:guildId/user/:userId', async (req, res) => {
+  try {
+    const { guildId, userId } = req.params;
+
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .where('members', 'array-contains', userId)
+      .limit(1)
+      .get();
+
+    if (teamSnapshot.empty) {
+      return res.json({ success: true, team: null });
+    }
+
+    const team = { id: teamSnapshot.docs[0].id, ...teamSnapshot.docs[0].data() };
+    res.json({ success: true, team });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete a team (only if user is the creator)
+app.delete('/teams/:guildId/user/:userId', async (req, res) => {
+  try {
+    const { guildId, userId } = req.params;
+
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .where('createdBy', '==', userId)
+      .limit(1)
+      .get();
+
+    if (teamSnapshot.empty) {
+      return res.status(403).json({ success: false, error: 'You are not the creator of any team in this guild.' });
+    }
+
+    await db.collection('teams').doc(teamSnapshot.docs[0].id).delete();
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
