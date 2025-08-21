@@ -1,8 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-const serviceAccount = require('./serviceAccountKey.json');
+const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
 
 const app = express();
 app.use(express.json());
