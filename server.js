@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initializeApp, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
 
 const app = express();
@@ -323,6 +323,38 @@ app.delete('/teams/:guildId/user/:userId', async (req, res) => {
 
     await db.collection('teams').doc(teamSnapshot.docs[0].id).delete();
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Add members to the team (checks if user is in team, then adds specified to members).
+app.post('/teams/add', async (req, res) => {
+  try {
+    const { guildId, members, userId } = req.body;
+
+    if (!guildId || !members) {
+      return res.status(400).json({success: false, error: 'guildId and members are required'})
+    }
+
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', 'guildId')
+      .where('members', 'array-contains', userId)
+      .limit(1)
+      .get();
+
+    if (teamSnapshot.empty) {
+      return res.status(403).json({ succes: false, error: 'You are not part of a team.'})
+    }
+      
+    const teamDoc = teamSnapshot.doc[0].ref;
+
+    await teamDoc.update({
+      members: FieldValue.arrayUnion(...members)
+    });
+
+    res.status(200).json({ success: true, message: 'use /team list to view updated team.'})
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
