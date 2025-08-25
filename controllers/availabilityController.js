@@ -41,7 +41,7 @@ exports.addAvailability = async (req, res) => {
 
 // List user availability
 exports.listAvailability = async (req, res) => {
-    try {
+  try {
     const { guildId, userId, type } = req.query;
     let query = db.collection('availabilities');
 
@@ -187,5 +187,43 @@ exports.compareAvailability = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+exports.clearAvailability = async (req, res) => {
+  try {
+    const {guildId, userId} = req.params;
+
+    const teamSnapshot = await db.collection('teams')
+      .where('guildId', '==', guildId)
+      .where('createdBy', '==', userId)
+      .limit(1)
+      .get();
+    
+    if(teamSnapshot.empty){
+      return res.status(400).json({success: false, error: `You are not the creator of the team.`});
+    }
+    const teamDoc = teamSnapshot[0];
+    const teamData = teamDoc.data();
+
+    const teamName = teamData.teamName;
+    const teamMembers = teamData.members || [];
+
+    for (const memberId of teamMembers) {
+      const availabilitySnapshot = await db.collection('availabilities')
+        .where('guildId', '==', guildId)
+        .where('userId', '==', memberId)
+        .get();
+      
+      const batch = db.batch();
+      availabilitySnapshot.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    
+    res.json({success: true, team: teamName});
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ succes: false, error: error.message});
   }
 }

@@ -16,5 +16,8 @@ router.delete('/:guildId/:userId/:shortId', availabilityController.removeAvailab
 // Compare availability
 router.get('/:guildId/compare', availabilityController.compareAvailability);
 
+// Clear team's schedule
+router.get('/:guildId/clear/:userId', availabilityController.clearAvailability);
+
 // Export routes
 module.exports = router
