@@ -329,32 +329,34 @@ app.delete('/teams/:guildId/user/:userId', async (req, res) => {
   }
 });
 
-// Add members to the team (checks if user is in team, then adds specified to members).
-app.post('/teams/add', async (req, res) => {
+// Add members to the team.
+app.post('/teams/add/:guildId/user/:userId', async (req, res) => {
   try {
-    const { guildId, members, userId } = req.body;
+    const { guildId, userId } = req.params;
+    const { members } = req.body
+    console.log(`guildId: ${guildId}, userId: ${userId}, Members: ${members}`);    
 
     if (!guildId || !members) {
       return res.status(400).json({success: false, error: 'guildId and members are required'})
     }
 
     const teamSnapshot = await db.collection('teams')
-      .where('guildId', '==', 'guildId')
-      .where('members', 'array-contains', userId)
+      .where('guildId', '==', guildId)
+      .where('createdBy', '==', userId)
       .limit(1)
       .get();
 
     if (teamSnapshot.empty) {
-      return res.status(403).json({ succes: false, error: 'You are not part of a team.'})
+      return res.status(403).json({ succes: false, error: 'You are not the creator of the team you are in.'})
     }
       
-    const teamDoc = teamSnapshot.doc[0].ref;
+    const teamDoc = teamSnapshot.docs[0].ref;
 
     await teamDoc.update({
       members: FieldValue.arrayUnion(...members)
     });
 
-    res.status(200).json({ success: true, message: 'use /team list to view updated team.'})
+    res.status(200).json({ success: true, message: 'Added member(s) to the team. Use "/team list" to view all members.'})
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
