@@ -1,4 +1,5 @@
 const { db } = require('../config/firebase')
+const { FieldValue } = require('firebase-admin/firestore');
 
 // Add availability
 exports.addAvailability = async (req, res) => {
