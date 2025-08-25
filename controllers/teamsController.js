@@ -94,8 +94,7 @@ exports.addMembers = async (req, res) => {
     try {
         const { guildId, userId } = req.params;
         const { members } = req.body
-        console.log(`guildId: ${guildId}, userId: ${userId}, Members: ${members}`);    
-
+        
         if (!guildId || !members) {
         return res.status(400).json({success: false, error: 'guildId and members are required'})
         }
