@@ -115,7 +115,7 @@ exports.addMembers = async (req, res) => {
         members: FieldValue.arrayUnion(...members)
         });
 
-        res.status(200).json({ success: true, message: 'Added member(s) to the team. Use '/team list' to view all members.'})
+        res.status(200).json({ success: true, message: `Added member(s) to the team. Use '/team list' to view all members.`})
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, error: err.message });

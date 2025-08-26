@@ -93,10 +93,10 @@ exports.compareAvailability = async (req, res) => {
     const { type, threshold, userId } = req.query;
 
     if (!type) {
-      return res.status(400).json({ success: false, error: 'Missing required 'type'' });
+      return res.status(400).json({ success: false, error: 'Missing required', type });
     }
     if (!userId) {
-      return res.status(400).json({ success: false, error: 'Missing required 'userId'' });
+      return res.status(400).json({ success: false, error: 'Missing required', userId });
     }
 
     // 1) Find the team the requesting user belongs to
