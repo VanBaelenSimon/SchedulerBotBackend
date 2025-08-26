@@ -1,23 +1,23 @@
 // ./routes/availability.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const availabilityController = require('../controllers/availabilityController');
+const availabilityController = require("../controllers/availabilityController");
 
 // Add availability
-router.post('/', availabilityController.addAvailability);
+router.post("/", availabilityController.addAvailability);
 
 // List availability (individual)
-router.get('/:guildId/:userId/:type', availabilityController.listAvailability);
+router.get("/:guildId/:userId/:type", availabilityController.listAvailability);
 
 // Remove availability by shortId
-router.delete('/:guildId/:userId/:shortId', availabilityController.removeAvailability);
+router.delete(
+  "/:guildId/:userId/:shortId",
+  availabilityController.removeAvailability
+);
 
 // Compare availability
-router.get('/:guildId/compare', availabilityController.compareAvailability);
-
-// Clear team's schedule
-router.get('/:guildId/clear/:userId', availabilityController.clearAvailability);
+router.get("/:guildId/compare", availabilityController.compareAvailability);
 
 // Export routes
-module.exports = router
+module.exports = router;

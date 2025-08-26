@@ -1,19 +1,22 @@
-const { db } = require('../config/firebase')
-const { FieldValue } = require('firebase-admin/firestore');
+const { db } = require("../config/firebase");
+const { FieldValue } = require("firebase-admin/firestore");
 
 // Add availability
 exports.addAvailability = async (req, res) => {
-    try {
+  try {
     const { guildId, userId, type, startUtc, endUtc } = req.body;
     if (!guildId || !userId || !type || !startUtc || !endUtc) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing required fields" });
     }
 
     // Find max shortId for this user in this guild
-    const snapshot = await db.collection('availabilities')
-      .where('guildId', '==', guildId)
-      .where('userId', '==', userId)
-      .orderBy('shortId', 'desc')
+    const snapshot = await db
+      .collection("availabilities")
+      .where("guildId", "==", guildId)
+      .where("userId", "==", userId)
+      .orderBy("shortId", "desc")
       .limit(1)
       .get();
 
@@ -22,7 +25,7 @@ exports.addAvailability = async (req, res) => {
       newShortId = snapshot.docs[0].data().shortId + 1;
     }
 
-    const docRef = await db.collection('availabilities').add({
+    const docRef = await db.collection("availabilities").add({
       guildId,
       userId,
       type,
@@ -37,72 +40,80 @@ exports.addAvailability = async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
-}
+};
 
 // List user availability
 exports.listAvailability = async (req, res) => {
   try {
     const { guildId, userId, type } = req.query;
-    let query = db.collection('availabilities');
+    let query = db.collection("availabilities");
 
-    if (guildId) query = query.where('guildId', '==', guildId);
-    if (userId) query = query.where('userId', '==', userId);
-    if (type) query = query.where('type', '==', type);
+    if (guildId) query = query.where("guildId", "==", guildId);
+    if (userId) query = query.where("userId", "==", userId);
+    if (type) query = query.where("type", "==", type);
 
     const snapshot = await query.get();
-    const data = snapshot.docs.filter(a => {
-      a.guildId === guildId
-    })
-    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const data = snapshot.docs.filter((a) => {
+      a.guildId === guildId;
+    });
+    const results = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     res.json({ success: true, results });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
-}
+};
 
 // Remove availability
 exports.removeAvailability = async (req, res) => {
-    try {
+  try {
     const { guildId, userId, shortId } = req.params;
 
-    const snapshot = await db.collection('availabilities')
-      .where('guildId', '==', guildId)
-      .where('userId', '==', userId)
-      .where('shortId', '==', parseInt(shortId))
+    const snapshot = await db
+      .collection("availabilities")
+      .where("guildId", "==", guildId)
+      .where("userId", "==", userId)
+      .where("shortId", "==", parseInt(shortId))
       .limit(1)
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: 'Availability not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Availability not found" });
     }
 
-    await db.collection('availabilities').doc(snapshot.docs[0].id).delete();
+    await db.collection("availabilities").doc(snapshot.docs[0].id).delete();
     res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
-}
+};
 
 // Compare availability
 exports.compareAvailability = async (req, res) => {
-    try {
+  try {
     const { guildId } = req.params;
     const { type, threshold, userId } = req.query;
 
     if (!type) {
-      return res.status(400).json({ success: false, error: 'Missing required "type"' });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Missing required "type"' });
     }
     if (!userId) {
-      return res.status(400).json({ success: false, error: 'Missing required "userId"' });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Missing required "userId"' });
     }
 
     // 1) Find the team the requesting user belongs to
-    const teamSnapshot = await db.collection('teams')
-      .where('guildId', '==', guildId)
-      .where('members', 'array-contains', userId)
+    const teamSnapshot = await db
+      .collection("teams")
+      .where("guildId", "==", guildId)
+      .where("members", "array-contains", userId)
       .limit(1)
       .get();
 
@@ -122,7 +133,8 @@ exports.compareAvailability = async (req, res) => {
     // 2) Fetch availabilities for just those team members (chunk "in" queries to ≤10 IDs each)
     const chunk = (arr, size) => {
       const out = [];
-      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+      for (let i = 0; i < arr.length; i += size)
+        out.push(arr.slice(i, i + size));
       return out;
     };
 
@@ -130,13 +142,16 @@ exports.compareAvailability = async (req, res) => {
     let availabilities = [];
 
     for (const mChunk of memberChunks) {
-      const snap = await db.collection('availabilities')
-        .where('guildId', '==', guildId)
-        .where('type', '==', type)
-        .where('userId', 'in', mChunk)
+      const snap = await db
+        .collection("availabilities")
+        .where("guildId", "==", guildId)
+        .where("type", "==", type)
+        .where("userId", "in", mChunk)
         .get();
 
-      availabilities.push(...snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      availabilities.push(
+        ...snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
     }
 
     if (availabilities.length === 0) {
@@ -144,34 +159,38 @@ exports.compareAvailability = async (req, res) => {
     }
 
     // 3) Original sweep-line logic, but scoped to team members only
-    const users = new Set(availabilities.map(a => a.userId));
+    const users = new Set(availabilities.map((a) => a.userId));
     const userCount = users.size;
-    const required = Math.ceil(((parseInt(threshold) || 100) / 100) * userCount);
+    const required = Math.ceil(
+      ((parseInt(threshold) || 100) / 100) * userCount
+    );
 
     let events = [];
     for (const a of availabilities) {
       const start = new Date(a.startUtc);
       const end = new Date(a.endUtc);
-      events.push({ time: start, type: 'start', userId: a.userId, end });
-      events.push({ time: end, type: 'end', userId: a.userId });
+      events.push({ time: start, type: "start", userId: a.userId, end });
+      events.push({ time: end, type: "end", userId: a.userId });
     }
 
     // Ensure ends are processed before starts when times tie
-    events.sort((a, b) => a.time - b.time || (a.type === 'end' ? -1 : 1));
+    events.sort((a, b) => a.time - b.time || (a.type === "end" ? -1 : 1));
 
     let active = new Map();
     let overlaps = [];
     let currentStart = null;
 
     for (const ev of events) {
-      if (ev.type === 'start') {
+      if (ev.type === "start") {
         active.set(ev.userId, ev.end);
         if (active.size >= required && !currentStart) {
           currentStart = ev.time;
         }
       } else {
         if (currentStart && active.size >= required) {
-          const minEnd = Math.min(...Array.from(active.values()).map(d => d.getTime()));
+          const minEnd = Math.min(
+            ...Array.from(active.values()).map((d) => d.getTime())
+          );
           overlaps.push({
             startUtc: currentStart.toISOString(),
             endUtc: new Date(minEnd).toISOString(),
@@ -188,42 +207,4 @@ exports.compareAvailability = async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
-}
-
-exports.clearAvailability = async (req, res) => {
-  try {
-    const {guildId, userId} = req.params;
-
-    const teamSnapshot = await db.collection('teams')
-      .where('guildId', '==', guildId)
-      .where('createdBy', '==', userId)
-      .limit(1)
-      .get();
-    
-    if(teamSnapshot.empty){
-      return res.status(400).json({success: false, error: `You are not the creator of the team.`});
-    }
-    const teamDoc = teamSnapshot[0];
-    const teamData = teamDoc.data();
-
-    const teamName = teamData.teamName;
-    const teamMembers = teamData.members || [];
-
-    for (const memberId of teamMembers) {
-      const availabilitySnapshot = await db.collection('availabilities')
-        .where('guildId', '==', guildId)
-        .where('userId', '==', memberId)
-        .get();
-      
-      const batch = db.batch();
-      availabilitySnapshot.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-    }
-    
-    res.json({success: true, team: teamName});
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ succes: false, error: error.message});
-  }
-}
+};
