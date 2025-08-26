@@ -54,17 +54,16 @@ app.get('/teams/clear/:guildId/:userId', async (req, res) => {
             'Team members do not have any availabilties set within this guild.',
         });
       }
-      const availabilities = {
-        id: availabilitySnapshot.docs[0].id,
-        ...availabilitySnapshot.docs[0].data(),
-      };
-
-      const res = await fetch(
-        `${API_URL}/availability/${guildId}/${availabilities.userId}/${availabilities.shortId}`,
-        {
-          method: 'DELETE',
-        }
-      );
+      
+      for (const doc of availabilitySnapshot.docs) {
+        const availability = {id: doc.id, ...doc.data()};        
+        const res = await fetch(
+          `${API_URL}/availability/${guildId}/${availability.userId}/${availability.shortId}`,
+          {
+            method: 'DELETE',
+          }
+        );
+      }
     }
     res
       .status(200)
