@@ -53,7 +53,7 @@ exports.listAvailability = async (req, res) => {
     const data = snapshot.docs.filter(a => {
       a.guildId === guildId
     })
-    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const results = data.map(doc => ({ id: doc.id, ...doc.data() }));
 
     res.json({ success: true, results });
   } catch (err) {
