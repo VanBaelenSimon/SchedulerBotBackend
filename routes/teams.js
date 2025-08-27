@@ -25,4 +25,7 @@ router.get(
   teamsController.listTeamAvailability
 );
 
+// Clear team availabilities
+router.get('/clear/:guildId/:userId', teamsController.clearTeamAvailability);
+
 module.exports = router;
