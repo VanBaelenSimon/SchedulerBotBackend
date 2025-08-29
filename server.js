@@ -9,7 +9,7 @@ app.use(cors());
 // Routes
 app.use('/availability', require('./routes/availability'));
 app.use('/teams', require('./routes/teams'));
-app.use('/discord', require('./routes/authRoutes'));
+app.use('/auth', require('./routes/authRoutes'));
 
 // Health check
 app.get('/', (req, res) => {
