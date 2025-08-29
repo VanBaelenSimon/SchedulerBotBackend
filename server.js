@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { db } = require('./config/firebase');
 
 const app = express();
 app.use(express.json());
@@ -10,6 +9,7 @@ app.use(cors());
 // Routes
 app.use('/availability', require('./routes/availability'));
 app.use('/teams', require('./routes/teams'));
+app.use('/discord', require('./routes/authRoutes'));
 
 // Health check
 app.get('/', (req, res) => {
