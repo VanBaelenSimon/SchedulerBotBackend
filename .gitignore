@@ -1,6 +1,9 @@
 # Firebase serviceAccountKey
 serviceAccountKey.json
 
+# vscode
+.vscode
+
 # Logs
 logs
 *.log
