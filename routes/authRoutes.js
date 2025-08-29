@@ -8,6 +8,8 @@ router.get('/discord', authController.discordLogin);
 
 router.get('/discord/callback', authController.discordCallback);
 
+router.get('/discord/finalize', authController.discordFinalize);
+
 router.get('/me', authController.discordMe);
 
 router.post('/logout', authController.discordLogout);
