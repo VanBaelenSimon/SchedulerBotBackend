@@ -45,7 +45,6 @@ exports.discordCallback = async (req,res) => {
         const guilds = await guildsResponse.json();
 
         res.json({user, guilds, access_token});
-        // res.redirect(`${frontendUrl}?code=${code}`)
     } catch (error) {
         console.error(error);
         res.status(500).send('OAuth2 error');
