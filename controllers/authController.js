@@ -1,5 +1,6 @@
 // ./controllers/authController.js
 require('dotenv').config();
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173/callback"
 
 exports.discordLogin = async (req,res) => {
     const redirectUri = process.env.DISCORD_REDIRECT_URI;
@@ -44,6 +45,7 @@ exports.discordCallback = async (req,res) => {
         const guilds = await guildsResponse.json();
 
         res.json({user, guilds, access_token});
+        // res.redirect(`${frontendUrl}?code=${code}`)
     } catch (error) {
         console.error(error);
         res.status(500).send('OAuth2 error');
@@ -68,7 +70,7 @@ exports.discordFinalize = async (req,res) => {
         { expiresIn: '7d' }
     );
 
-    res.cookies('token', token, {httpOnly:true,secure:true,sameSite:'lax'});
+    res.cookie('token', token, {httpOnly:true,secure:true,sameSite:'lax'});
     res.json({success:true});
 }
 
