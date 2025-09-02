@@ -36,7 +36,7 @@ exports.discordCallback = async (req, res) => {
     const { access_token, token_type } = await tokenResponse.json();
 
     const userResponse = await fetch('https://discord.com/api/users/@me', {
-      hearders: { Authorization: `${token_type} ${access_token}` },
+      headers: { Authorization: `${token_type} ${access_token}` },
     });
     const user = await userResponse.json();
 
