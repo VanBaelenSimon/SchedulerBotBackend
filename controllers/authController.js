@@ -1,7 +1,5 @@
 // ./controllers/authController.js
 require('dotenv').config();
-const frontendUrl =
-  process.env.FRONTEND_URL || 'http://localhost:5173/callback';
 
 exports.discordLogin = async (req, res) => {
   const redirectUri = process.env.DISCORD_REDIRECT_URI;
@@ -101,6 +99,6 @@ exports.discordMe = async (req, res) => {
 };
 
 exports.discordLogout = async (req, res) => {
-  res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'lax' });
+  res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'none' });
   res.json({ success: true, message: 'Logged out' });
 };
