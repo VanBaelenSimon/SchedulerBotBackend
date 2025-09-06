@@ -8,7 +8,7 @@ const availabilityController = require('../controllers/availabilityController');
 router.post('/', availabilityController.addAvailability);
 
 // List availability (individual)
-router.get('/:guildId/:userId/:type', availabilityController.listAvailability);
+router.get('/:guildId/:userId', availabilityController.listAvailability);
 
 // Remove availability by shortId
 router.delete(

@@ -45,17 +45,15 @@ exports.addAvailability = async (req, res) => {
 // List user availability
 exports.listAvailability = async (req, res) => {
   try {
-    const { guildId, userId, type } = req.params;
+    const { guildId, userId } = req.params;
     let query = db.collection('availabilities');
 
     if (guildId) query = query.where('guildId', '==', guildId);
     if (userId) query = query.where('userId', '==', userId);
-    if (type) query = query.where('type', '==', type);
 
-    const snapshot = await query.get();
-    
+    const snapshot = await query.get();    
     const results = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
+    
     res.json({ success: true, results });
   } catch (err) {
     console.error(err);
