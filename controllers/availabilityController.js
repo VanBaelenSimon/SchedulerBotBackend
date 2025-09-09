@@ -1,5 +1,6 @@
 const { db } = require('../config/firebase');
 const { FieldValue } = require('firebase-admin/firestore');
+const { batchDeleteAvailabilities } = require('../services/availabilityService');
 
 // Add availability
 exports.addAvailability = async (req, res) => {
@@ -51,9 +52,9 @@ exports.listAvailability = async (req, res) => {
     if (guildId) query = query.where('guildId', '==', guildId);
     if (userId) query = query.where('userId', '==', userId);
 
-    const snapshot = await query.get();    
+    const snapshot = await query.get();
     const results = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    
+
     res.json({ success: true, results });
   } catch (err) {
     console.error(err);
@@ -202,5 +203,20 @@ exports.compareAvailability = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.batchDelete = async (req, res) => {
+  try {
+    const { guildId, items } = req.body;
+
+    if (!guildId || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({success: false, error: 'Missing required fields'});
+    }
+    const results = await batchDeleteAvailabilities(guildId, items);
+    res.json({success: true, results});
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
