@@ -16,9 +16,6 @@ router.delete(
   availabilityController.removeAvailability
 );
 
-// Compare availability
-router.get('/:guildId/compare', availabilityController.compareAvailability);
-
 // Remove selected availabilities (PWA)
 router.post('/batchdelete', availabilityController.batchDelete);
 // Export routes

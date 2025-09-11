@@ -25,6 +25,9 @@ router.get(
   teamsController.listTeamAvailability
 );
 
+// Compare availability
+router.get('/:guildId/compare', teamsController.compareAvailability);
+
 // Clear team availabilities
 router.get('/clear/:guildId/:userId', teamsController.clearTeamAvailability);
 

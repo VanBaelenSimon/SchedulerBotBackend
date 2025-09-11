@@ -1,6 +1,8 @@
 const { db } = require('../config/firebase');
 const { FieldValue } = require('firebase-admin/firestore');
-const { batchDeleteAvailabilities } = require('../services/availabilityService');
+const {
+  batchDeleteAvailabilities,
+} = require('../services/availabilityService');
 
 // Add availability
 exports.addAvailability = async (req, res) => {
@@ -89,132 +91,17 @@ exports.removeAvailability = async (req, res) => {
   }
 };
 
-// Compare availability
-exports.compareAvailability = async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const { type, threshold, userId } = req.query;
-
-    if (!type) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Missing required', type });
-    }
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Missing required', userId });
-    }
-
-    // 1) Find the team the requesting user belongs to
-    const teamSnapshot = await db
-      .collection('teams')
-      .where('guildId', '==', guildId)
-      .where('members', 'array-contains', userId)
-      .limit(1)
-      .get();
-
-    if (teamSnapshot.empty) {
-      // Not in a team → return no overlaps, but keep success = true to avoid breaking clients
-      return res.json({ success: true, overlaps: [], teamName: null });
-    }
-
-    const teamDoc = teamSnapshot.docs[0].data();
-    const teamName = teamDoc.teamName || null;
-    const memberIds = Array.isArray(teamDoc.members) ? teamDoc.members : [];
-
-    if (memberIds.length === 0) {
-      return res.json({ success: true, overlaps: [], teamName });
-    }
-
-    // 2) Fetch availabilities for just those team members (chunk 'in' queries to ≤10 IDs each)
-    const chunk = (arr, size) => {
-      const out = [];
-      for (let i = 0; i < arr.length; i += size)
-        out.push(arr.slice(i, i + size));
-      return out;
-    };
-
-    const memberChunks = chunk(memberIds, 10);
-    let availabilities = [];
-
-    for (const mChunk of memberChunks) {
-      const snap = await db
-        .collection('availabilities')
-        .where('guildId', '==', guildId)
-        .where('type', '==', type)
-        .where('userId', 'in', mChunk)
-        .get();
-
-      availabilities.push(
-        ...snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-    }
-
-    if (availabilities.length === 0) {
-      return res.json({ success: true, overlaps: [], teamName });
-    }
-
-    // 3) Original sweep-line logic, but scoped to team members only
-    const users = new Set(availabilities.map((a) => a.userId));
-    const userCount = users.size;
-    const required = Math.ceil(
-      ((parseInt(threshold) || 100) / 100) * userCount
-    );
-
-    let events = [];
-    for (const a of availabilities) {
-      const start = new Date(a.startUtc);
-      const end = new Date(a.endUtc);
-      events.push({ time: start, type: 'start', userId: a.userId, end });
-      events.push({ time: end, type: 'end', userId: a.userId });
-    }
-
-    // Ensure ends are processed before starts when times tie
-    events.sort((a, b) => a.time - b.time || (a.type === 'end' ? -1 : 1));
-
-    let active = new Map();
-    let overlaps = [];
-    let currentStart = null;
-
-    for (const ev of events) {
-      if (ev.type === 'start') {
-        active.set(ev.userId, ev.end);
-        if (active.size >= required && !currentStart) {
-          currentStart = ev.time;
-        }
-      } else {
-        if (currentStart && active.size >= required) {
-          const minEnd = Math.min(
-            ...Array.from(active.values()).map((d) => d.getTime())
-          );
-          overlaps.push({
-            startUtc: currentStart.toISOString(),
-            endUtc: new Date(minEnd).toISOString(),
-            users: [...active.keys()],
-          });
-          currentStart = null;
-        }
-        active.delete(ev.userId);
-      }
-    }
-
-    res.json({ success: true, overlaps, teamName });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-};
-
 exports.batchDelete = async (req, res) => {
   try {
     const { guildId, items } = req.body;
 
     if (!guildId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({success: false, error: 'Missing required fields'});
+      return res
+        .status(400)
+        .json({ success: false, error: 'Missing required fields' });
     }
     const results = await batchDeleteAvailabilities(guildId, items);
-    res.json({success: true, results});
+    res.json({ success: true, results });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: error.message });
