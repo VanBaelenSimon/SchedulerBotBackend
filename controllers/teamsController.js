@@ -251,8 +251,6 @@ exports.compareAvailability = async (req, res) => {
     const { guildId } = req.params;
     const { type, threshold, userId } = req.query;
 
-    console.log(guildId, type, threshold, userId);
-
     if (!type) {
       return res
         .status(400)
@@ -271,8 +269,6 @@ exports.compareAvailability = async (req, res) => {
       .limit(1)
       .get();
 
-    console.log(teamSnapshot);
-
     if (teamSnapshot.empty) {
       return res.json({ success: true, overlaps: [], teamName: null });
     }
@@ -280,8 +276,6 @@ exports.compareAvailability = async (req, res) => {
     const teamDoc = teamSnapshot.docs[0].data();
     const teamName = teamDoc.teamName || null;
     const memberIds = Array.isArray(teamDoc.members) ? teamDoc.members : [];
-
-    console.log({ teamDoc, teamName, memberIds });
 
     if (memberIds.length === 0) {
       return res.json({ success: true, overlaps: [], teamName });
