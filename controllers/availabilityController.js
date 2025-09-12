@@ -7,7 +7,7 @@ const {
 // Add availability
 exports.addAvailability = async (req, res) => {
   try {
-    const { guildId, userId, type, startUtc, endUtc } = req.body;
+    const { guildId, userId, type, startUtc, endUtc, userName } = req.body;
     if (!guildId || !userId || !type || !startUtc || !endUtc) {
       return res
         .status(400)
@@ -35,6 +35,7 @@ exports.addAvailability = async (req, res) => {
       startUtc,
       endUtc,
       shortId: newShortId,
+      userName: userName || null,
       createdAt: new Date().toISOString(),
     });
 
