@@ -59,9 +59,9 @@ exports.discordFinalize = async (req, res) => {
   const jwt = require('jsonwebtoken');
   const { guildId, guildName, user } = req.body;
 
-  const allowedGuilds = process.env.ALLOWED_GUILDS?.split(',');
+  const allowedGuilds = process.env.ALLOWED_GUILDS;
 
-  if (!allowedGuilds.contains(guildId)) {
+  if (!allowedGuilds.includes(guildId)) {
     res.json({ success: false });
   }
 
