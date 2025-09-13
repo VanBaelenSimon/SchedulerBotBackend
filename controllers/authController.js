@@ -59,8 +59,15 @@ exports.discordFinalize = async (req, res) => {
   const jwt = require('jsonwebtoken');
   const { guildId, guildName, user } = req.body;
 
-  if (!guildId || !guildName || !user)
+  const allowedGuilds = process.env.ALLOWED_GUILDS?.split(',');
+
+  if (!allowedGuilds.contains(guildId)) {
+    res.json({ success: false });
+  }
+
+  if (!guildId || !guildName || !user) {
     return res.status(400).send('Missing info');
+  }
 
   const token = jwt.sign(
     {
